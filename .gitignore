@@ -2,5 +2,12 @@
 profiles/*
 !profiles/.gitkeep
 
+# ISP-VPN deploy artifacts contain upstream proxy credentials
+deploy/isp-vpn/pki/
+deploy/isp-vpn/ccd/
+deploy/isp-vpn/routes.txt
+deploy/isp-vpn/docker-compose.yml
+deploy/isp-vpn/upstreams.json
+
 # macOS
 .DS_Store

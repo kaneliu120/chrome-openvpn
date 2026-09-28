@@ -196,11 +196,16 @@ live in gitignored `profiles/`:
 LABEL=…   UPSTREAM=http://user:pass@host:port   COUNTRY=US
 ```
 
-If you ever need a *literal* `.ovpn` that exits via an ISP IP (e.g. OpenVPN
-Connect on a phone, or non-browser apps), the ISP proxy must sit on the
-server side: run one `openvpn` server instance per product on a VPS with
-its egress chained into that product's proxy (tun2socks/gost). Nothing
-client-side can make a proxy look like an OpenVPN endpoint.
+A *literal* `.ovpn` that exits via an ISP IP also exists: `deploy/isp-vpn/`
+runs a single container on ns515786 (mesh `100.96.0.6:12300/udp`) where
+OpenVPN pins each **client certificate CN** to a fixed tunnel IP
+(`client-config-dir`), and iptables redirects that IP's TCP to a per-product
+`gost red` listener chained to the product's upstream proxy. Run
+`deploy/isp-vpn/gen_isp_vpn.py` to (re)build PKI/ccd/routes/compose and the
+matching `profiles/isp-*.ovpn` files — every `.ovpn` shares the same remote
+port and differs only in its embedded client cert. Caveats: TCP-only
+(UDP/53 is served by an in-container dnsmasq; QUIC/other UDP is dropped so
+clients fall back), and the upstream must allow CONNECT to arbitrary ports.
 
 ## Notes & limitations
 
