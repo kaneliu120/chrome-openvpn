@@ -35,9 +35,13 @@ SRC = Path.home() / "Downloads" / "账号信息"
 HERE = Path(__file__).resolve().parent
 PKI = HERE / "pki"
 PROFILES = HERE.parent.parent / "profiles"
-REMOTE_HOST = "167.114.209.179"  # public IP: client uplink must not ride the mesh
-MESH_BIND = "100.96.0.6"         # keep an extra bind on CloudflareWARP as fallback
+REMOTE_HOST = "167.114.209.179"  # public IP bind on the VPS
+MESH_BIND = "100.96.0.6"         # extra bind on CloudflareWARP (SSH-fwd target / fallback)
 REMOTE_PORT = 12300
+# Kane's LAN whitelists outbound ports (web/mail/ssh only), so profiles dial
+# 127.0.0.1 and reach the server through a persistent SSH forward:
+#   launchd com.kane.ispvpn-fwd -> ssh -N -L 127.0.0.1:12300:100.96.0.6:12300 ns515786
+OVPN_REMOTE = "127.0.0.1"
 GOST_PORT_BASE = 12400
 CCD = HERE / "ccd"
 ROUTES = HERE / "routes.txt"
@@ -159,9 +163,10 @@ client
 dev tun
 proto tcp-client
 remote {host} {port}
-# Keep the local Cloudflare WARP mesh (and the other kane.ovpn uplink it rides
-# on) outside this tunnel, or redirect-gateway eats their transports and the
-# mesh drops the moment the VPN connects.
+# The real uplink is the local SSH forward to {REMOTE_HOST}: the route below
+# keeps that SSH session on the physical gateway once redirect-gateway lands,
+# and the WARP/kane.ovpn transports stay exempt so the mesh keeps working.
+route {REMOTE_HOST} 255.255.255.255 net_gateway
 route 162.158.0.0 255.254.0.0 net_gateway
 route 198.41.128.0 255.255.128.0 net_gateway
 route 1.1.1.1 255.255.255.255 net_gateway
@@ -198,9 +203,9 @@ def emit_ovpn(instances: list[dict]) -> None:
         cert = (PKI / f"client-{inst['name']}.crt").read_text().strip() + "\n"
         key = (PKI / f"client-{inst['name']}.key").read_text().strip() + "\n"
         body = OVPN_TMPL.format(name=inst["name"], exit_ip=inst["exit_ip"],
-                                label=inst["name"], host=REMOTE_HOST,
+                                label=inst["name"], host=OVPN_REMOTE,
                                 port=inst["port"], ca=ca, cert=cert,
-                                key=key, ta=ta)
+                                key=key, ta=ta, REMOTE_HOST=REMOTE_HOST)
         (PROFILES / f"{inst['name']}.ovpn").write_text(body)
 
 
