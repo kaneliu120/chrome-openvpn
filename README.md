@@ -174,6 +174,34 @@ Keep it disconnected while the bridge runs. If it connects, it captures
 the whole system — including Chrome — and the "only Chrome" behavior is
 gone until you disconnect it.
 
+## ISP proxy profiles (no VPN needed)
+
+For plain HTTP/SOCKS5 upstream proxies (ISP/static-residential products) a
+real OpenVPN tunnel is unnecessary — `.ovpn`'s `remote` must be an actual
+OpenVPN server, and `http-proxy`/`socks-proxy` directives only relay the
+*tunnel transport*, they don't change the exit IP. To exit **from** the
+proxy's IP, run the local chain instead:
+
+```sh
+python3 gen-isp-profiles.py      # writes profiles/*.proxy from ~/Downloads/账号信息 exports
+./proxy-bridge.sh isp-evomi      # or pick from the same menu as vpn-bridge
+```
+
+`proxy-bridge.sh` serves the same `127.0.0.1:1080` SOCKS5 the extension
+already uses — gost chains `socks5 → upstream http/socks5 proxy`, so no
+tun, no sudo, and the exit IP is the ISP endpoint itself. Profile files
+live in gitignored `profiles/`:
+
+```
+LABEL=…   UPSTREAM=http://user:pass@host:port   COUNTRY=US
+```
+
+If you ever need a *literal* `.ovpn` that exits via an ISP IP (e.g. OpenVPN
+Connect on a phone, or non-browser apps), the ISP proxy must sit on the
+server side: run one `openvpn` server instance per product on a VPS with
+its egress chained into that product's proxy (tun2socks/gost). Nothing
+client-side can make a proxy look like an OpenVPN endpoint.
+
 ## Notes & limitations
 
 - macOS only. The interface-scoped routing trick (`route -ifscope`) is
