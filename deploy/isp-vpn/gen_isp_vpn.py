@@ -35,7 +35,8 @@ SRC = Path.home() / "Downloads" / "账号信息"
 HERE = Path(__file__).resolve().parent
 PKI = HERE / "pki"
 PROFILES = HERE.parent.parent / "profiles"
-REMOTE_HOST = "100.96.0.6"
+REMOTE_HOST = "167.114.209.179"  # public IP: client uplink must not ride the mesh
+MESH_BIND = "100.96.0.6"         # keep an extra bind on CloudflareWARP as fallback
 REMOTE_PORT = 12300
 GOST_PORT_BASE = 12400
 CCD = HERE / "ccd"
@@ -135,7 +136,9 @@ def emit_compose(instances: list[dict]) -> None:
     restart: unless-stopped
     cap_add: [NET_ADMIN]
     devices: ['/dev/net/tun']
-    ports: ['{REMOTE_HOST}:{REMOTE_PORT}:1194/tcp']
+    ports:
+      - '{REMOTE_HOST}:{REMOTE_PORT}:1194/tcp'
+      - '{MESH_BIND}:{REMOTE_PORT}:1194/tcp'
     volumes:
       - './pki:/pki:ro'
       - './ccd:/etc/ispvpn/ccd:ro'
@@ -156,6 +159,14 @@ client
 dev tun
 proto tcp-client
 remote {host} {port}
+# Keep the local Cloudflare WARP mesh (and the other kane.ovpn uplink it rides
+# on) outside this tunnel, or redirect-gateway eats their transports and the
+# mesh drops the moment the VPN connects.
+route 162.158.0.0 255.254.0.0 net_gateway
+route 198.41.128.0 255.255.128.0 net_gateway
+route 1.1.1.1 255.255.255.255 net_gateway
+route 1.0.0.1 255.255.255.255 net_gateway
+route 34.92.0.244 255.255.255.255 net_gateway
 resolv-retry infinite
 nobind
 persist-key
