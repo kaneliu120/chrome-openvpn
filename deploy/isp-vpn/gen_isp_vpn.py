@@ -4,7 +4,7 @@ profiles/*.ovpn for chrome-openvpn.
 
 Each usable ISP exit (Evomi static / Geonode shared / CatProxies premium,
 parsed from ~/Downloads/账号信息) becomes one container: openvpn server on
-udp/1194 inside, published as 100.96.0.6:PORT/udp on the host mesh IP.
+tcp/1194 inside, published as 100.96.0.6:PORT/tcp on the host mesh IP.
 Server egress is chained into that exit's upstream proxy via gost `red`
 (iptables REDIRECT inside the container), so the VPN exit IP == ISP IP.
 
@@ -16,7 +16,7 @@ Outputs (all gitignored / server-only where they contain credentials):
   deploy/isp-vpn/pki/            CA + server cert + one client cert per exit
   deploy/isp-vpn/ccd/            per-CN ifconfig-push files
   deploy/isp-vpn/routes.txt      tunnel_ip  local_port  upstream_url
-  deploy/isp-vpn/docker-compose.yml   one ispvpn service on :12300/udp
+  deploy/isp-vpn/docker-compose.yml   one ispvpn service on :12300/tcp
   deploy/isp-vpn/upstreams.json  name -> upstream/ip/port manifest
   profiles/isp-*.ovpn            client profiles, all remote :12300,
                                  differing only by embedded client cert
@@ -135,7 +135,7 @@ def emit_compose(instances: list[dict]) -> None:
     restart: unless-stopped
     cap_add: [NET_ADMIN]
     devices: ['/dev/net/tun']
-    ports: ['{REMOTE_HOST}:{REMOTE_PORT}:1194/udp']
+    ports: ['{REMOTE_HOST}:{REMOTE_PORT}:1194/tcp']
     volumes:
       - './pki:/pki:ro'
       - './ccd:/etc/ispvpn/ccd:ro'
@@ -154,7 +154,7 @@ networks:
 OVPN_TMPL = """# {name} — exit via {exit_ip} ({label})
 client
 dev tun
-proto udp
+proto tcp-client
 remote {host} {port}
 resolv-retry infinite
 nobind
@@ -207,7 +207,7 @@ def main() -> int:
                      "upstream": i["upstream"]} for i in instances},
         indent=1))
     print(f"{len(instances)} exits -> one service on "
-          f"{REMOTE_HOST}:{REMOTE_PORT}/udp")
+          f"{REMOTE_HOST}:{REMOTE_PORT}/tcp")
     print("compose:", HERE / "docker-compose.yml")
     print("ovpn:", PROFILES, f"({len(instances)} files)")
     return 0
