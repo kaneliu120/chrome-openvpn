@@ -100,8 +100,16 @@ def cmd_list():
         server = ""
         try:
             with open(f) as fh:
-                m = re.search(r"^remote\s+(\S+)", fh.read(), re.M)
-                server = m.group(1) if m else ""
+                text = fh.read()
+                # Prefer the profile's "exit via <ip>" banner (the real
+                # upstream exit) over `remote`, which after the SSH-fwd
+                # rework is always the loopback 127.0.0.1.
+                m = re.search(r"^#\s*\S+\s*[—-]\s*exit\s+via\s+(\S+)", text, re.M)
+                if m:
+                    server = m.group(1)
+                else:
+                    m = re.search(r"^remote\s+(\S+)", text, re.M)
+                    server = m.group(1) if m else ""
         except OSError:
             pass
         profiles.append({"name": os.path.basename(f)[:-5], "server": server})
